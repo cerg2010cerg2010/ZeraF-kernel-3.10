@@ -159,7 +159,7 @@ ifeq ($(MALI_UPPER_HALF_SCHEDULING),1)
 	ccflags-y += -DMALI_UPPER_HALF_SCHEDULING
 endif
 
-ccflags-$(CONFIG_MALI400_UMP) += -I$(DRIVER_DIR)/../../ump/include/ump
+ccflags-$(CONFIG_MALI400_UMP) += -I$(DRIVER_DIR)/../../ump/include/ump -DCONFIG_MALI400_UMP=1
 ccflags-$(CONFIG_MALI400_DEBUG) += -DDEBUG
 
 # Use our defines when compiling
