@@ -47,7 +47,7 @@
  * GNU General Public License for more details.
  *
  */
-
+#define MT6572
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
@@ -74,6 +74,7 @@
 #include <linux/hwmsen_dev.h>
 #include <stk3x1x_cust_alsps.h>
 #include "stk3x1x.h"
+#include "alsps.h"
 #define DRIVER_VERSION          "3.1.2 20140610"
 //#define STK_PS_POLLING_LOG
 #define STK_TUNE0
@@ -108,7 +109,7 @@
 #include <mach/mt6577_gpio.h>
 #include <mach/mt6577_pm_ldo.h>
 #endif
-#define MT6572
+
 #if (defined(MT6589) || defined(MT6572))
 //#include <mach/mt_devs.h>
 #include <mach/mt_typedefs.h>
@@ -387,21 +388,17 @@ static struct i2c_driver stk3x1x_i2c_driver = {
 };
 
 static struct stk3x1x_priv *stk3x1x_obj = NULL;
-static struct platform_driver stk3x1x_alsps_driver;
+//static struct platform_driver stk3x1x_alsps_driver;
 
 extern int hwmsen_alsps_sensor_add(struct sensor_init_info* obj) ;
 static int  stk3x1x_local_init(void);
-#if 0
 static int stk3x1x_remove(void);
-#endif
 static int stk3x1x_init_flag =-1;
-#if 0
-static struct sensor_init_info stk3x1x_init_info = {			
+static struct alsps_init_info stk3x1x_init_info = {			
 	.name = "stk3x1x",			
 	.init = stk3x1x_local_init,			
 	.uninit =stk3x1x_remove,	
 };/* Add end */
-#endif
 static int stk3x1x_get_ps_value(struct stk3x1x_priv *obj, u16 ps);
 static int stk3x1x_get_ps_value_only(struct stk3x1x_priv *obj, u16 ps);
 static int stk3x1x_get_als_value(struct stk3x1x_priv *obj, u16 als);
@@ -3525,9 +3522,9 @@ static int stk3x1x_i2c_probe(struct i2c_client *client, const struct i2c_device_
 		goto exit_misc_device_register_failed;
 	}
 
-	if((err = stk3x1x_create_attr(&stk3x1x_alsps_driver.driver)))
+//	if((err = stk3x1x_create_attr(&stk3x1x_alsps_driver.driver)))
 //	if((err = stk3x1x_create_attr(&stk3x1x_i2c_driver.driver)))
-//	if((err = stk3x1x_create_attr(&(stk3x1x_init_info.platform_diver_addr->driver))))
+	if((err = stk3x1x_create_attr(&(stk3x1x_init_info.platform_diver_addr->driver))))
 	{
 		APS_ERR("create attribute err = %d\n", err);
 		goto exit_create_attr_failed;
@@ -3660,7 +3657,6 @@ static int  stk3x1x_local_init(void)
 	}
 	return 0;
 }
-#if 0
 static int stk3x1x_remove(void)
 {
 	struct alsps_hw *hw = stx3x1x_get_cust_alsps_hw();
@@ -3669,8 +3665,8 @@ static int stk3x1x_remove(void)
 	i2c_del_driver(&stk3x1x_i2c_driver);
 	return 0;
 }
-#endif
-#if 1
+
+#if 0
 /*----------------------------------------------------------------------------*/
 static int stk3x1x_remove(struct platform_device *pdev)
 {
@@ -3702,15 +3698,16 @@ static int __init stk3x1x_init(void)
 	i2c_register_board_info(hw->i2c_num, &i2c_stk3x1x, 1);	
 #endif
 	APS_FUN();
-#if 1
+      #if 0
 	if(platform_driver_register(&stk3x1x_alsps_driver))
 	{
 		APS_ERR("failed to register driver");
 		return -ENODEV;
 	}
-#else
-      	hwmsen_alsps_sensor_add(&stk3x1x_init_info);
-#endif
+	#else
+      	//hwmsen_alsps_sensor_add(&stk3x1x_init_info);
+	alsps_driver_add(&stk3x1x_init_info);
+	#endif
 	return 0;
 }
 /*----------------------------------------------------------------------------*/
