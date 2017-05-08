@@ -419,6 +419,10 @@ ssize_t dumchar_read (struct file *filp, char __user *buf, size_t count,loff_t *
 		pos = *f_pos+dev->start_address;
 		switch(dev->region){
 			case USER:
+				if (*f_pos + count > dev->size)
+					count = dev->size - *f_pos;
+				if (!count)
+					break;
 				result = vfs_read(fo->act_filp,buf,count,&pos);
 				break;
 			case BOOT_1:
@@ -550,6 +554,10 @@ ssize_t dumchar_write (struct file *filp, const char __user *buf, size_t count,l
 		pos = *f_pos+dev->start_address;
 		switch(dev->region){
 			case USER:
+				if (*f_pos + count > dev->size)
+					count = dev->size - *f_pos;
+				if (!count)
+					break;
 				result = vfs_write(fo->act_filp,buf,count,&pos);
 				break;
 			case BOOT_1:
