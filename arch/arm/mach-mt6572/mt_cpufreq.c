@@ -52,6 +52,10 @@ int cpu_down(unsigned int cpu) { return 0; }
 * enable this option to adjust buck voltage
 ***************************************************/
 #define MT_BUCK_ADJUST
+/**************************************************
+* enable CPU overclocking
+***************************************************/
+#define MT_OVERCLOCK
 
 /***************************
 * debug message
@@ -95,7 +99,11 @@ static unsigned int g_vcore = DVFS_V1;
 static unsigned int g_limited_power = 0;
 
 static unsigned int g_limited_max_ncpu;
+#ifdef MT_OVERCLOCK
+static unsigned int g_limited_max_freq = DVFS_D2;
+#else
 static unsigned int g_limited_max_freq;
+#endif
 //static unsigned int g_limited_min_freq;
 static unsigned int g_cpufreq_get_ptp_level = 0;
 static unsigned int g_cpufreq_power_tbl_num = 0;
@@ -109,7 +117,7 @@ static bool mt_cpufreq_pause = false;
 static bool mt_cpufreq_ptpod_disable = true;
 static bool mt_cpufreq_fix = false;
 static bool mt_cpufreq_fixdds = false;
-static bool mt_cpufreq_usb_raise = true;
+static bool mt_cpufreq_usb_raise = false;
 static DEFINE_SPINLOCK(mt_cpufreq_lock);
 static DEFINE_MUTEX(power_mutex);
 
@@ -147,11 +155,24 @@ struct mt_cpu_power_info
 * MT6572 E1 DVFS Table
 ****************************/
 static struct mt_cpu_freq_info mt6572_freqs_e1[] = {
+#ifdef MT_OVERCLOCK
+    //OP(DVFS_E2, DVFS_VE),
+    OP(DVFS_E1, DVFS_VE),
+    OP(DVFS_D0, DVFS_VE),
+
+    OP(DVFS_E0, DVFS_V0),
+    OP(DVFS_D1, DVFS_V0),
+#endif
     OP(DVFS_D2, DVFS_V0),
     OP(DVFS_D3, DVFS_V0),
     OP(DVFS_F1, DVFS_V1),
     OP(DVFS_F2, DVFS_V1),
     OP(DVFS_F3, DVFS_V1),
+#ifdef MT_OVERCLOCK
+    OP(DVFS_F4, DVFS_V1),
+    OP(DVFS_F5, DVFS_V1),
+#endif
+
 };
 
 static struct mt_cpu_freq_info mt6572_freqs_e1_1[] = {
@@ -174,12 +195,26 @@ static struct mt_cpu_tbl_info spm_pmic_config[MAX_SPM_PMIC_TBL];
 static unsigned int cpu_num = 0;
 /* Power Golden table */
 static struct mt_cpu_power_info mt_cpu_golden_power[] = {
-    {.cpufreq_khz = DVFS_D0, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 2, .cpufreq_power = 724 },
+#ifdef MT_OVERCLOCK
+    {.cpufreq_khz = DVFS_E2, .cpufreq_volt = DVFS_VE, .cpufreq_ncpu = 2, .cpufreq_power = 800 },
+    {.cpufreq_khz = DVFS_E1, .cpufreq_volt = DVFS_VE, .cpufreq_ncpu = 2, .cpufreq_power = 760 },
+#endif
+    {.cpufreq_khz = DVFS_D0, .cpufreq_volt = DVFS_VE, .cpufreq_ncpu = 2, .cpufreq_power = 730 },
+    {.cpufreq_khz = DVFS_E0, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 2, .cpufreq_power = 690 },
+    //{.cpufreq_khz = DVFS_D0, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 2, .cpufreq_power = 724 },
     {.cpufreq_khz = DVFS_D1, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 2, .cpufreq_power = 653 },
     {.cpufreq_khz = DVFS_D2, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 2, .cpufreq_power = 618 },
     {.cpufreq_khz = DVFS_D3, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 2, .cpufreq_power = 582 },
-    {.cpufreq_khz = DVFS_D0, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 1, .cpufreq_power = 423 },
+#ifdef MT_OVERCLOCK
+    {.cpufreq_khz = DVFS_E2, .cpufreq_volt = DVFS_VE, .cpufreq_ncpu = 1, .cpufreq_power = 463 },
+    {.cpufreq_khz = DVFS_E1, .cpufreq_volt = DVFS_VE, .cpufreq_ncpu = 1, .cpufreq_power = 445 },
+#endif
+    {.cpufreq_khz = DVFS_D0, .cpufreq_volt = DVFS_VE, .cpufreq_ncpu = 1, .cpufreq_power = 423 },
+    //{.cpufreq_khz = DVFS_D0, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 1, .cpufreq_power = 423 },
     {.cpufreq_khz = DVFS_F1, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 2, .cpufreq_power = 422 },
+#ifdef MT_OVERCLOCK
+    {.cpufreq_khz = DVFS_E0, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 1, .cpufreq_power = 405 },
+#endif
     {.cpufreq_khz = DVFS_D1, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 1, .cpufreq_power = 383 },
     {.cpufreq_khz = DVFS_D2, .cpufreq_volt = DVFS_V0, .cpufreq_ncpu = 1, .cpufreq_power = 363 },
     {.cpufreq_khz = DVFS_F2, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 2, .cpufreq_power = 362 },
@@ -188,6 +223,13 @@ static struct mt_cpu_power_info mt_cpu_golden_power[] = {
     {.cpufreq_khz = DVFS_F1, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 1, .cpufreq_power = 249 },
     {.cpufreq_khz = DVFS_F2, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 1, .cpufreq_power = 215 },
     {.cpufreq_khz = DVFS_F3, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 1, .cpufreq_power = 181 },
+#ifdef MT_OVERCLOCK
+    {.cpufreq_khz = DVFS_F4, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 2, .cpufreq_power = 172 },
+    {.cpufreq_khz = DVFS_F4, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 1, .cpufreq_power = 164 },
+    {.cpufreq_khz = DVFS_F5, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 2, .cpufreq_power = 147 },
+    {.cpufreq_khz = DVFS_F5, .cpufreq_volt = DVFS_V1, .cpufreq_ncpu = 1, .cpufreq_power = 142 },
+#endif
+
 };
 
 static struct mt_cpu_power_info *mt_cpu_power = NULL;
@@ -971,6 +1013,7 @@ static int mt_cpufreq_target(struct cpufreq_policy *policy, unsigned int target_
 #endif
 
 #ifndef MT_DVFS_RANDOM_TEST
+#ifdef MT_OVERCLOCK
         // don't do ramp down until there are "two" continuous request to ramp down
         if (mt_cpufreq_keep_org_freq(g_cur_OPP, new_OPP_idx))
         {
@@ -978,9 +1021,14 @@ static int mt_cpufreq_target(struct cpufreq_policy *policy, unsigned int target_
             new_OPP_idx = g_cur_OPP;
         }
         //
+#endif
         if(clock_is_on(MT_CG_USB_SW_CG) == PWR_ON && mt_cpufreq_usb_raise == true && charging_type_detection_done() == KAL_TRUE)
         {
+#ifdef MT_OVERCLOCK
+		  new_OPP_idx = DVFS_D2;
+#else
         	  new_OPP_idx = 0;
+#endif
         }
 
         if (mt_cpufreq_pause == true)
@@ -1146,7 +1194,11 @@ static int mt_cpufreq_init(struct cpufreq_policy *policy)
     policy->cpuinfo.min_freq = mt_cpu_freqs[mt_cpu_freqs_num-1].cpufreq_khz;
 
     policy->cur = DEFAULT_FREQ;
+#ifdef MT_OVERCLOCK
+    policy->max = DVFS_D2;
+#else
     policy->max = mt_cpu_freqs[0].cpufreq_khz;
+#endif
     policy->min = mt_cpu_freqs[mt_cpu_freqs_num-1].cpufreq_khz;
 
 
@@ -1296,7 +1348,11 @@ void mt_cpufreq_thermal_protect(unsigned int limited_power)
     {
         //restore max_ncpu and freq to maximum
         g_limited_max_ncpu = num_possible_cpus();
+#ifdef MT_OVERCLOCK
+        g_limited_max_freq = DVFS_D2;
+#else
         g_limited_max_freq = mt_cpu_freqs[0].cpufreq_khz;
+#endif
         g_max_power_OPP = 0;
 
         //cpufreq_driver_target(policy, g_limited_max_freq, CPUFREQ_RELATION_L);
@@ -1710,7 +1766,11 @@ static int mt_cpufreq_pdrv_probe(struct platform_device *pdev)
     g_normal_max_OPP = get_normal_max_opp_idx();
 
     // setup global information max_freq and max_ncpu are for thermal
+#ifdef MT_OVERCLOCK
+    g_limited_max_freq = DVFS_D2;
+#else
     g_limited_max_freq = mt_cpu_freqs[0].cpufreq_khz;
+#endif
     g_limited_max_ncpu = num_possible_cpus();
     g_max_power_OPP = 0;
     //g_limited_max_freq = g_max_freq_by_ptp;
