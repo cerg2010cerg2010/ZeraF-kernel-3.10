@@ -3,3 +3,9 @@ config MTK_GPU_SUPPORT
   default n
   help
     CONFIG_MTK_GPU_SUPPORT define if the gpu driver should be built in or not
+
+config DRM_MALI
+	tristate "Mali DRM supprt"
+	help
+	  Choose this option if you have a Mali 200 or Mali 400 gpu
+	  If M is selected the module will be called mali_drm.
